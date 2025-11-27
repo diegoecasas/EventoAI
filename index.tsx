@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client';
 const App = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [dashboardView, setDashboardView] = useState('events'); // 'events', 'metrics', 'manageEvent', 'assistant'
+    const [dashboardView, setDashboardView] = useState('events'); // 'events', 'metrics', 'manageEvent', 'assistant', 'createEvent'
     
     const [events, setEvents] = useState([
         { id: 1, name: 'INNOVFEST 2024', slug: 'innovfest-2024', description: 'El festival de innovación más grande del año.', status: 'Activo' },
@@ -32,6 +32,19 @@ const App = () => {
         setDashboardView('assistant');
     };
 
+    const handleCreateEvent = (newEventData) => {
+        const newEvent = {
+            id: events.length + 1,
+            name: newEventData.name,
+            slug: newEventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+            description: newEventData.description,
+            status: 'Borrador'
+        };
+        setEvents([...events, newEvent]);
+        setSelectedEvent(newEvent);
+        setDashboardView('manageEvent');
+    };
+
     if (dashboardView === 'assistant' && isLoggedIn) {
         return <AssistantInterface event={selectedEvent} onBack={() => setDashboardView('events')} />;
     }
@@ -48,7 +61,8 @@ const App = () => {
             selectedEvent={selectedEvent}
             onManageEvent={manageEvent}
             onViewAssistant={viewAssistant}
-            onLogout={handleLogout} 
+            onLogout={handleLogout}
+            onCreateEvent={handleCreateEvent}
         />
     );
 };
@@ -217,7 +231,7 @@ const LandingPage = ({ onLoginClick, showAuthModal, onLogin, setShowAuthModal })
                                     </div>
                                      <div className="form-group">
                                         <label htmlFor="demo-details">Detalles del Evento (Opcional)</label>
-                                        <textarea id="demo-details" rows="3" placeholder="Tipo de evento, fecha estimada, etc."></textarea>
+                                        <textarea id="demo-details" rows={3} placeholder="Tipo de evento, fecha estimada, etc."></textarea>
                                     </div>
                                     <button type="submit" className="cta-button" style={{width: '100%'}}>Solicitar Demo Gratuita</button>
                                 </form>
@@ -286,7 +300,6 @@ const LandingPage = ({ onLoginClick, showAuthModal, onLogin, setShowAuthModal })
                                 <button onClick={() => setShowDemoModal(true)} className="cta-button" style={{marginTop: '2rem'}}>Quiero activarlo en mi evento</button>
                             </div>
                             <div className="glass-card" style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                                {/* Fixed type error: width and height must be numbers */}
                                 <svg xmlns="http://www.w3.org/2000/svg" width={120} height={120} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--primary-glow)'}}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                             </div>
                         </div>
@@ -356,9 +369,9 @@ const LandingPage = ({ onLoginClick, showAuthModal, onLogin, setShowAuthModal })
                                    <input 
                                      type="range" 
                                      id="attendees" 
-                                     min="500" 
-                                     max="50000" 
-                                     step="500" 
+                                     min={500} 
+                                     max={50000} 
+                                     step={500} 
                                      value={attendees} 
                                      onChange={(e) => setAttendees(Number(e.target.value))}
                                      style={{width: '100%', marginTop: '0.5rem'}}
@@ -392,7 +405,7 @@ const LandingPage = ({ onLoginClick, showAuthModal, onLogin, setShowAuthModal })
     );
 };
 
-const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent, onViewAssistant, onLogout }) => {
+const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent, onViewAssistant, onLogout, onCreateEvent }) => {
     
     const styles = `
         :root {
@@ -412,7 +425,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
         body {
             font-family: 'Poppins', sans-serif; background-color: var(--dark-bg);
             color: var(--text-primary); overflow-x: hidden;
-            background-image: radial-gradient(circle at 10% 10%, var(--primary-glow) 0%, transparent-content 30%),
+            background-image: radial-gradient(circle at 10% 10%, var(--primary-glow) 0%, transparent 30%),
                               radial-gradient(circle at 90% 80%, var(--secondary-glow) 0%, transparent 35%);
             background-attachment: fixed;
         }
@@ -458,6 +471,8 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
             transition: all 0.3s ease; box-shadow: 0 5px 20px rgba(74, 0, 224, 0.4);
         }
         .cta-button:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(142, 45, 226, 0.5); background: var(--cta-hover-bg); }
+        .cta-button:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+        
         .form-group { margin-bottom: 1.5rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); }
         .form-group input, .form-group textarea {
@@ -494,9 +509,60 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                         </div>
                     </div>
                 ))}
+                {/* New Event Card */}
+                <div className="glass-card event-card" style={{borderStyle: 'dashed', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: 0.8, minHeight: '230px'}} onClick={() => setView('createEvent')}>
+                    <div style={{fontSize: '3rem', color: 'var(--primary-glow)', marginBottom: '0.5rem'}}>+</div>
+                    <h3 style={{color: 'var(--text-secondary)'}}>Crear Nuevo Evento</h3>
+                </div>
             </div>
         </div>
     );
+
+    const CreateEvent = () => {
+        const [name, setName] = useState('');
+        const [description, setDescription] = useState('');
+
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            onCreateEvent({ name, description });
+        };
+
+        return (
+            <div>
+                <h1 className="page-title">Crear Nuevo Evento</h1>
+                <div className="glass-card" style={{maxWidth: '600px'}}>
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-group">
+                            <label htmlFor="event-name">Nombre del Evento</label>
+                            <input 
+                                type="text" 
+                                id="event-name" 
+                                value={name} 
+                                onChange={(e) => setName(e.target.value)} 
+                                placeholder="Ej: TechConference 2024" 
+                                required 
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="event-desc">Descripción Breve</label>
+                            <textarea 
+                                id="event-desc" 
+                                rows={3} 
+                                value={description} 
+                                onChange={(e) => setDescription(e.target.value)} 
+                                placeholder="Describe el propósito del evento..."
+                                required
+                            ></textarea>
+                        </div>
+                        <div style={{display:'flex', gap:'1rem', marginTop:'2rem'}}>
+                             <button type="submit" className="cta-button">Crear Evento</button>
+                             <button type="button" className="cta-button" style={{background:'transparent', border:'1px solid var(--glass-border)'}} onClick={() => setView('events')}>Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    };
 
     const MetricsDashboard = () => (
         <div>
@@ -526,6 +592,8 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
     const ManageEvent = () => {
         const [snippetButtonText, setSnippetButtonText] = useState('Copiar Snippet');
         const [logoPreview, setLogoPreview] = useState(null);
+        const [isSaving, setIsSaving] = useState(false);
+        const [saveStatus, setSaveStatus] = useState('idle'); // idle, success
 
         const snippetCode = `
 <div id="eventoia-fab" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; cursor: pointer;">
@@ -554,6 +622,19 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
             }
         };
 
+        const handleSaveChanges = () => {
+            setIsSaving(true);
+            setSaveStatus('idle');
+            
+            // Simulation of API call and AI retraining trigger
+            setTimeout(() => {
+                setIsSaving(false);
+                setSaveStatus('success');
+                // Optional: clear success message after a few seconds
+                setTimeout(() => setSaveStatus('idle'), 4000);
+            }, 1800);
+        };
+
         return (
              <div>
                 <h1 className="page-title">Gestionar: {selectedEvent.name}</h1>
@@ -569,7 +650,20 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                             <input type="file" id="logo-upload" accept="image/*" onChange={handleLogoChange} style={{padding: '0.5rem', background: 'transparent', border: 'none'}}/>
                             {logoPreview && <img src={logoPreview} alt="Vista previa del logo" className="logo-preview" />}
                         </div>
-                         <button className="cta-button">Guardar Cambios</button>
+                         <button 
+                            className="cta-button" 
+                            onClick={handleSaveChanges} 
+                            disabled={isSaving}
+                            style={{width: '100%', position: 'relative', overflow: 'hidden'}}
+                        >
+                            {isSaving ? 'Procesando & Sincronizando...' : 'Guardar Cambios'}
+                        </button>
+                        {saveStatus === 'success' && (
+                            <div style={{marginTop: '1rem', padding: '0.8rem', background: 'rgba(0, 255, 127, 0.1)', border: '1px solid rgba(0, 255, 127, 0.3)', borderRadius: '8px', color: '#00ff7f', textAlign: 'center', animation: 'fadeIn 0.5s'}}>
+                                <strong>¡Sincronización Exitosa!</strong><br/>
+                                <span style={{fontSize: '0.85rem'}}>La IA ha sido re-entrenada con los nuevos datos.</span>
+                            </div>
+                        )}
                     </div>
                     <div className="glass-card">
                         <h3>Integración del Asistente</h3>
@@ -579,7 +673,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                         </div>
                         <div className="form-group">
                             <label>Snippet de Integración (Botón flotante)</label>
-                            <textarea readOnly value={snippetCode} rows="8"></textarea>
+                            <textarea readOnly value={snippetCode} rows={8}></textarea>
                         </div>
                         <button onClick={handleCopySnippet} className="cta-button">{snippetButtonText}</button>
                     </div>
@@ -605,7 +699,6 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                     <nav>
                         <ul className="sidebar-nav">
                             <li><button onClick={() => setView('events')} className={currentView === 'events' ? 'active' : ''}>
-                                {/* Fixed type error: width and height must be numbers */}
                                 <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                                 Mis Eventos</button></li>
                             <li><button onClick={() => setView('metrics')} className={currentView === 'metrics' ? 'active' : ''}>
@@ -616,6 +709,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                 </aside>
                 <main className="main-content">
                     {currentView === 'events' && <EventsList />}
+                    {currentView === 'createEvent' && <CreateEvent />}
                     {currentView === 'metrics' && <MetricsDashboard />}
                     {currentView === 'manageEvent' && <ManageEvent />}
                 </main>
