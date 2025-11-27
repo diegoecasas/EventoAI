@@ -4,13 +4,49 @@ import ReactDOM from 'react-dom/client';
 const App = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [dashboardView, setDashboardView] = useState('events'); // 'events', 'metrics', 'manageEvent', 'assistant', 'createEvent'
+    // 'events', 'metrics', 'manageEvent', 'assistant', 'createEvent', 'publicAssistant', 'publicLanding'
+    const [dashboardView, setDashboardView] = useState('events'); 
     
-    const [events, setEvents] = useState([
-        { id: 1, name: 'INNOVFEST 2024', slug: 'innovfest-2024', description: 'El festival de innovación más grande del año.', status: 'Activo' },
-        { id: 2, name: 'TECHSUMMIT Global', slug: 'techsummit-global', description: 'Conectando mentes brillantes en tecnología.', status: 'Finalizado' },
-    ]);
+    // Initialize events from localStorage or default
+    const [events, setEvents] = useState(() => {
+        const saved = localStorage.getItem('eventoia_events');
+        return saved ? JSON.parse(saved) : [
+            { id: 1, name: 'INNOVFEST 2024', slug: 'innovfest-2024', description: 'El festival de innovación más grande del año.', status: 'Activo' },
+            { id: 2, name: 'TECHSUMMIT Global', slug: 'techsummit-global', description: 'Conectando mentes brillantes en tecnología.', status: 'Finalizado' },
+        ];
+    });
+
     const [selectedEvent, setSelectedEvent] = useState(events[0]);
+
+    // Persist events to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('eventoia_events', JSON.stringify(events));
+    }, [events]);
+
+    // Handle Hash Routing for Public Links
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash;
+            if (hash.startsWith('#/event/')) {
+                const slug = hash.replace('#/event/', '');
+                const foundEvent = events.find(e => e.slug === slug);
+                if (foundEvent) {
+                    setSelectedEvent(foundEvent);
+                    // Route to the new Public Landing Page for the event instead of direct chat
+                    setDashboardView('publicLanding'); 
+                }
+            } else if (hash === '' && (dashboardView === 'publicLanding' || dashboardView === 'publicAssistant')) {
+                 // Return to main flow if hash is cleared
+                 setDashboardView('events');
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        // Check on mount
+        handleHashChange();
+
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [events, dashboardView]);
 
     const handleLogin = () => {
         setIsLoggedIn(true);
@@ -20,6 +56,7 @@ const App = () => {
     const handleLogout = () => {
         setIsLoggedIn(false);
         setDashboardView('events');
+        window.location.hash = '';
     };
 
     const manageEvent = (event) => {
@@ -34,19 +71,42 @@ const App = () => {
 
     const handleCreateEvent = (newEventData) => {
         const newEvent = {
-            id: events.length + 1,
+            id: Date.now(), // Use timestamp for unique ID
             name: newEventData.name,
             slug: newEventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
             description: newEventData.description,
             status: 'Borrador'
         };
-        setEvents([...events, newEvent]);
+        const updatedEvents = [...events, newEvent];
+        setEvents(updatedEvents);
         setSelectedEvent(newEvent);
+        // Trigger save immediately
+        localStorage.setItem('eventoia_events', JSON.stringify(updatedEvents));
         setDashboardView('manageEvent');
     };
 
+    // Render Public Views (No Login Required)
+    if (dashboardView === 'publicLanding') {
+        return (
+            <PublicEventPage 
+                event={selectedEvent} 
+                onStartAssistant={() => setDashboardView('publicAssistant')}
+            />
+        );
+    }
+
+    if (dashboardView === 'publicAssistant') {
+        return (
+            <AssistantInterface 
+                event={selectedEvent} 
+                onBack={() => setDashboardView('publicLanding')} 
+                isPublic={true}
+            />
+        );
+    }
+
     if (dashboardView === 'assistant' && isLoggedIn) {
-        return <AssistantInterface event={selectedEvent} onBack={() => setDashboardView('events')} />;
+        return <AssistantInterface event={selectedEvent} onBack={() => setDashboardView('events')} isPublic={false} />;
     }
 
     if (!isLoggedIn) {
@@ -64,6 +124,101 @@ const App = () => {
             onLogout={handleLogout}
             onCreateEvent={handleCreateEvent}
         />
+    );
+};
+
+const PublicEventPage = ({ event, onStartAssistant }) => {
+    const styles = `
+        .public-page-container {
+            min-height: 100vh;
+            background-color: #0a071a;
+            background-image: radial-gradient(circle at 10% 10%, #8e2de2 0%, transparent 30%),
+                              radial-gradient(circle at 90% 80%, #4a00e0 0%, transparent 35%);
+            background-attachment: fixed;
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .event-hero {
+            text-align: center; max-width: 600px;
+            margin-bottom: 3rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 3rem 2rem; border-radius: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+        .event-title {
+            font-size: 3rem; font-weight: 700;
+            background: linear-gradient(90deg, #fff, #b0a8d9);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        .event-status {
+            display: inline-block; padding: 0.4rem 1rem;
+            border-radius: 20px; font-size: 0.9rem;
+            background: rgba(142, 45, 226, 0.2);
+            color: #e0c3fc; border: 1px solid rgba(142, 45, 226, 0.4);
+            margin-bottom: 1.5rem;
+        }
+        .start-button {
+            background: linear-gradient(90deg, #8e2de2, #4a00e0);
+            color: white; border: none; padding: 1.2rem 2.5rem;
+            border-radius: 50px; font-size: 1.2rem; font-weight: 600;
+            cursor: pointer; box-shadow: 0 5px 20px rgba(74, 0, 224, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 0.8rem;
+            width: 100%;
+        }
+        .start-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(142, 45, 226, 0.6);
+        }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;
+            margin-top: 2rem; width: 100%;
+        }
+        .feature-item {
+            background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.05);
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @media(max-width: 600px) { .event-title { font-size: 2rem; } }
+    `;
+
+    return (
+        <div className="public-page-container">
+            <style>{styles}</style>
+            <div className="event-hero">
+                <div className="event-status">Evento Activo</div>
+                <h1 className="event-title">{event.name}</h1>
+                <p style={{color: '#b0a8d9', fontSize: '1.1rem', marginBottom: '2.5rem', lineHeight: '1.6'}}>
+                    {event.description}
+                </p>
+                
+                <button onClick={onStartAssistant} className="start-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    Abrir Asistente Virtual
+                </button>
+
+                <div className="features-grid">
+                    <div className="feature-item">
+                        <div style={{fontSize:'1.5rem', marginBottom:'0.5rem'}}>📍</div>
+                        <div style={{fontSize:'0.9rem', color:'#b0a8d9'}}>Mapas Interactivos</div>
+                    </div>
+                    <div className="feature-item">
+                        <div style={{fontSize:'1.5rem', marginBottom:'0.5rem'}}>📅</div>
+                        <div style={{fontSize:'0.9rem', color:'#b0a8d9'}}>Agenda en Vivo</div>
+                    </div>
+                </div>
+            </div>
+            <footer style={{position: 'fixed', bottom: '10px', color: '#b0a8d9', fontSize: '0.8rem', opacity: 0.6}}>
+                Powered by EventoIA
+            </footer>
+        </div>
     );
 };
 
@@ -595,6 +750,10 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
         const [isSaving, setIsSaving] = useState(false);
         const [saveStatus, setSaveStatus] = useState('idle'); // idle, success
 
+        // Generate a working public link based on current location and hash routing
+        const currentOrigin = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
+        const publicLink = `${currentOrigin}#/event/${selectedEvent.slug}`;
+
         const snippetCode = `
 <div id="eventoia-fab" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; cursor: pointer;">
   <div style="width: 60px; height: 60px; background: linear-gradient(90deg, #8e2de2, #4a00e0); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 20px rgba(74, 0, 224, 0.4);">
@@ -603,7 +762,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
 </div>
 <script>
   document.getElementById('eventoia-fab').addEventListener('click', function() {
-    window.open('https://eventfinder-43348506292.us-west1.run.app/eventos/asistente/${selectedEvent.slug}', '_blank');
+    window.open('${publicLink}', '_blank');
   });
 </script>
         `.trim();
@@ -668,8 +827,14 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                     <div className="glass-card">
                         <h3>Integración del Asistente</h3>
                         <div className="form-group">
-                            <label>Enlace público al asistente</label>
-                            <input type="text" readOnly value={`https://.../asistente/${selectedEvent.slug}`} />
+                            <label>Enlace público para Asistentes</label>
+                            <div style={{display: 'flex', gap: '0.5rem'}}>
+                                <input type="text" readOnly value={publicLink} />
+                                <button onClick={() => window.open(publicLink, '_blank')} className="cta-button" style={{padding: '0.5rem 1rem', fontSize: '0.9rem'}}>Probar</button>
+                            </div>
+                            <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem'}}>
+                                * Comparte este enlace con tus asistentes para que accedan a la página del evento.
+                            </p>
                         </div>
                         <div className="form-group">
                             <label>Snippet de Integración (Botón flotante)</label>
@@ -718,7 +883,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
     );
 };
 
-const AssistantInterface = ({ event, onBack }) => {
+const AssistantInterface = ({ event, onBack, isPublic = false }) => {
     const [messages, setMessages] = useState([
         { from: 'ai', text: `¡Hola! Soy el asistente de IA para ${event.name}. ¿Cómo puedo ayudarte hoy?` }
     ]);
@@ -747,6 +912,7 @@ const AssistantInterface = ({ event, onBack }) => {
                               radial-gradient(circle at 90% 80%, var(--secondary-glow) 0%, transparent 35%);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             animation: fadeIn 0.5s forwards;
+            z-index: 5000;
         }
         .assistant-window {
             width: 90%; max-width: 800px; height: 80vh; max-height: 700px;
@@ -789,7 +955,10 @@ const AssistantInterface = ({ event, onBack }) => {
                             <h3 style={{margin: 0}}>{event.name}</h3>
                             <p style={{margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Asistente Virtual</p>
                         </div>
-                        <button onClick={onBack} className="cta-button" style={{padding: '0.5rem 1rem'}}>Volver al Panel</button>
+                        {/* Only show "Back" button if it's the preview mode, or change text if public */}
+                        <button onClick={onBack} className="cta-button" style={{padding: '0.5rem 1rem'}}>
+                            {isPublic ? 'Volver' : 'Volver al Panel'}
+                        </button>
                     </div>
                     <div className="chat-history">
                        {messages.map((msg, index) => (
