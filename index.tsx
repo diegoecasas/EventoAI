@@ -73,7 +73,7 @@ const App = () => {
         const newEvent = {
             id: Date.now(), // Use timestamp for unique ID
             name: newEventData.name,
-            slug: newEventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+            slug: newEventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '') + '-' + Date.now().toString().slice(-4),
             description: newEventData.description,
             status: 'Borrador'
         };
@@ -83,6 +83,33 @@ const App = () => {
         // Trigger save immediately
         localStorage.setItem('eventoia_events', JSON.stringify(updatedEvents));
         setDashboardView('manageEvent');
+    };
+
+    const handleDuplicateEvent = (eventToCopy) => {
+        const timestamp = Date.now();
+        const newEvent = {
+            ...eventToCopy,
+            id: timestamp,
+            name: `${eventToCopy.name} (Copia)`,
+            slug: `${eventToCopy.slug}-copia-${timestamp.toString().slice(-4)}`,
+            status: 'Borrador'
+        };
+        const updatedEvents = [...events, newEvent];
+        setEvents(updatedEvents);
+        localStorage.setItem('eventoia_events', JSON.stringify(updatedEvents));
+    };
+
+    const handleDeleteEvent = (eventId) => {
+        if (window.confirm('¿Estás seguro de que deseas eliminar este evento? Esta acción no se puede deshacer.')) {
+            const updatedEvents = events.filter(e => e.id !== eventId);
+            setEvents(updatedEvents);
+            localStorage.setItem('eventoia_events', JSON.stringify(updatedEvents));
+            
+            // If we deleted the currently selected event, select another one or null
+            if (selectedEvent && selectedEvent.id === eventId) {
+                setSelectedEvent(updatedEvents.length > 0 ? updatedEvents[0] : null);
+            }
+        }
     };
 
     // Render Public Views (No Login Required)
@@ -123,6 +150,8 @@ const App = () => {
             onViewAssistant={viewAssistant}
             onLogout={handleLogout}
             onCreateEvent={handleCreateEvent}
+            onDuplicateEvent={handleDuplicateEvent}
+            onDeleteEvent={handleDeleteEvent}
         />
     );
 };
@@ -560,7 +589,7 @@ const LandingPage = ({ onLoginClick, showAuthModal, onLogin, setShowAuthModal })
     );
 };
 
-const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent, onViewAssistant, onLogout, onCreateEvent }) => {
+const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent, onViewAssistant, onLogout, onCreateEvent, onDuplicateEvent, onDeleteEvent }) => {
     
     const styles = `
         :root {
@@ -640,7 +669,15 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
         .event-card { padding: 1.5rem; }
         .event-card h3 { font-size: 1.25rem; margin-bottom: 0.5rem; }
         .event-card p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; min-height: 40px; }
-        .event-card-footer { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .event-card-footer { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        
+        .icon-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;
+            color: var(--text-secondary); cursor: pointer; transition: all 0.3s;
+        }
+        .icon-btn:hover { background: var(--glass-bg); color: var(--text-primary); transform: translateY(-2px); }
+        .icon-btn.delete:hover { background: rgba(255, 77, 77, 0.2); border-color: rgba(255, 77, 77, 0.4); color: #ff4d4d; }
 
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .metric-card { text-align: center; }
@@ -660,7 +697,16 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                         <p>{event.description}</p>
                         <div className="event-card-footer">
                            <button onClick={() => onManageEvent(event)} className="cta-button">Gestionar</button>
-                           <button onClick={() => onViewAssistant(event)} className="cta-button" style={{background: 'var(--glass-bg)', border: '1px solid var(--glass-border)'}}>Previsualizar Asistente</button>
+                           <button onClick={() => onViewAssistant(event)} className="cta-button" style={{background: 'var(--glass-bg)', border: '1px solid var(--glass-border)'}}>Previsualizar</button>
+                           
+                           <div style={{marginLeft: 'auto', display: 'flex', gap: '0.5rem'}}>
+                                <button onClick={() => onDuplicateEvent(event)} className="icon-btn" title="Duplicar Evento">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
+                                <button onClick={() => onDeleteEvent(event.id)} className="icon-btn delete" title="Eliminar Evento">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </button>
+                           </div>
                         </div>
                     </div>
                 ))}
