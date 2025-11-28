@@ -200,7 +200,7 @@ const PublicEventPage = ({ event, onStartAssistant }) => {
                 </p>
                 
                 <button onClick={onStartAssistant} className="start-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                     Abrir Asistente Virtual
                 </button>
 
@@ -746,6 +746,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
 
     const ManageEvent = () => {
         const [snippetButtonText, setSnippetButtonText] = useState('Copiar Snippet');
+        const [linkButtonText, setLinkButtonText] = useState('Copiar');
         const [logoPreview, setLogoPreview] = useState(null);
         const [isSaving, setIsSaving] = useState(false);
         const [saveStatus, setSaveStatus] = useState('idle'); // idle, success
@@ -771,6 +772,13 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
             navigator.clipboard.writeText(snippetCode).then(() => {
                 setSnippetButtonText('¡Copiado!');
                 setTimeout(() => setSnippetButtonText('Copiar Snippet'), 2000);
+            });
+        };
+
+        const handleCopyLink = () => {
+            navigator.clipboard.writeText(publicLink).then(() => {
+                setLinkButtonText('¡Copiado!');
+                setTimeout(() => setLinkButtonText('Copiar'), 2000);
             });
         };
 
@@ -831,6 +839,7 @@ const Dashboard = ({ currentView, setView, events, selectedEvent, onManageEvent,
                             <div style={{display: 'flex', gap: '0.5rem'}}>
                                 <input type="text" readOnly value={publicLink} />
                                 <button onClick={() => window.open(publicLink, '_blank')} className="cta-button" style={{padding: '0.5rem 1rem', fontSize: '0.9rem'}}>Probar</button>
+                                <button onClick={handleCopyLink} className="cta-button" style={{padding: '0.5rem 1rem', fontSize: '0.9rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)'}}>{linkButtonText}</button>
                             </div>
                             <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem'}}>
                                 * Comparte este enlace con tus asistentes para que accedan a la página del evento.
